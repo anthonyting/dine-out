@@ -25,6 +25,10 @@ export interface Restaurant {
   amenities: Amenities;
 }
 
+export interface RestaurantWithMenu extends Restaurant {
+  menu: string;
+}
+
 export interface Crmtracking {
   core_listing_click: string;
   core_twitter_click: string;

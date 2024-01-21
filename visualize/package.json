@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.1.2",
+    "@radix-ui/react-checkbox": "^1.0.4",
+    "@tanstack/react-table": "^8.11.6",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "dompurify": "^3.0.8",

@@ -180,8 +180,20 @@ async function getRestaurants() {
 
 /**
  *
+ * @param {import('./index.js').RestaurantWithMenu[]} veganRestaurants
+ * @returns
+ */
+async function writeVeganRestaurants(veganRestaurants) {
+  return fs.writeFile(
+    new URL("./vegan.json", import.meta.url),
+    JSON.stringify(veganRestaurants, null, 2),
+  );
+}
+
+/**
+ *
  * @param {import("./index.js").Restaurant[]} restaurants
- * @returns {Promise<import('./index.js').Restaurant[]>}
+ * @returns {Promise<import('./index.js').RestaurantWithMenu[]>}
  */
 async function getVeganRestaurants(restaurants) {
   try {
@@ -195,28 +207,53 @@ async function getVeganRestaurants(restaurants) {
     }
   }
 
-  /** @type {import('./index.js').Restaurant[]} */
+  /** @type {import('./index.js').RestaurantWithMenu[]} */
   const veganRestaurants = [];
   for (const restaurant of restaurants) {
     console.log(`Checking ${restaurant.title}`);
     const $ = await getDetail(restaurant.detailURL);
-    const isVegan = /vegan/i.test($.text());
+    const text = $(".menu").text();
+    const isVegan = /vegan/i.test(text);
     if (isVegan) {
-      veganRestaurants.push(restaurant);
+      veganRestaurants.push(processVeganRestaurant(restaurant, text));
     }
   }
 
-  await fs.writeFile(
-    new URL("./vegan.json", import.meta.url),
-    JSON.stringify(veganRestaurants, null, 2),
-  );
+  writeVeganRestaurants(veganRestaurants);
 
   return veganRestaurants;
+}
+
+/**
+ *
+ * @param {import('./index.js').Restaurant} restaurant
+ * @param {string} menu
+ */
+function processVeganRestaurant(restaurant, menu) {
+  return {
+    ...restaurant,
+    menu: menu.replace(/\s\s+/g, " ").replace(/’/g, "'").trim(),
+  };
+}
+
+/**
+ *
+ * @param {import('./index.js').RestaurantWithMenu[]} restaurants
+ */
+async function reprocessSavedVeganRestaurants(restaurants) {
+  const processed = restaurants.map((restaurant) =>
+    processVeganRestaurant(restaurant, restaurant.menu),
+  );
+
+  writeVeganRestaurants(processed);
+
+  return processed;
 }
 
 async function main() {
   const restaurants = await getRestaurants();
   const veganRestaurants = await getVeganRestaurants(restaurants);
+  await reprocessSavedVeganRestaurants(veganRestaurants);
 }
 
 await main().catch(console.error);
