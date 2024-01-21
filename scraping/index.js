@@ -183,9 +183,9 @@ async function getRestaurants() {
  * @param {import('./index.js').RestaurantWithMenu[]} veganRestaurants
  * @returns
  */
-async function writeVeganRestaurants(veganRestaurants) {
+async function writeRestaurantsWithMenu(veganRestaurants) {
   return fs.writeFile(
-    new URL("./vegan.json", import.meta.url),
+    new URL("./restaurants-with-menu.json", import.meta.url),
     JSON.stringify(veganRestaurants, null, 2),
   );
 }
@@ -195,10 +195,10 @@ async function writeVeganRestaurants(veganRestaurants) {
  * @param {import("./index.js").Restaurant[]} restaurants
  * @returns {Promise<import('./index.js').RestaurantWithMenu[]>}
  */
-async function getVeganRestaurants(restaurants) {
+async function getRestaurantsWithMenu(restaurants) {
   try {
     const veganRestaurants = JSON.parse(
-      await fs.readFile(new URL("./vegan.json", import.meta.url), "utf8"),
+      await fs.readFile(new URL("./restaurants-with-menu.json", import.meta.url), "utf8"),
     );
     return veganRestaurants;
   } catch (e) {
@@ -210,16 +210,13 @@ async function getVeganRestaurants(restaurants) {
   /** @type {import('./index.js').RestaurantWithMenu[]} */
   const veganRestaurants = [];
   for (const restaurant of restaurants) {
-    console.log(`Checking ${restaurant.title}`);
+    console.log(`Fetching ${restaurant.title}`);
     const $ = await getDetail(restaurant.detailURL);
     const text = $(".menu").text();
-    const isVegan = /vegan/i.test(text);
-    if (isVegan) {
-      veganRestaurants.push(processVeganRestaurant(restaurant, text));
-    }
+    veganRestaurants.push(addMenuToRestaurant(restaurant, text));
   }
 
-  writeVeganRestaurants(veganRestaurants);
+  writeRestaurantsWithMenu(veganRestaurants);
 
   return veganRestaurants;
 }
@@ -229,7 +226,7 @@ async function getVeganRestaurants(restaurants) {
  * @param {import('./index.js').Restaurant} restaurant
  * @param {string} menu
  */
-function processVeganRestaurant(restaurant, menu) {
+function addMenuToRestaurant(restaurant, menu) {
   return {
     ...restaurant,
     menu: menu.replace(/\s\s+/g, " ").replace(/’/g, "'").trim(),
@@ -240,20 +237,20 @@ function processVeganRestaurant(restaurant, menu) {
  *
  * @param {import('./index.js').RestaurantWithMenu[]} restaurants
  */
-async function reprocessSavedVeganRestaurants(restaurants) {
+async function reprocessSavedRestaurants(restaurants) {
   const processed = restaurants.map((restaurant) =>
-    processVeganRestaurant(restaurant, restaurant.menu),
+    addMenuToRestaurant(restaurant, restaurant.menu),
   );
 
-  writeVeganRestaurants(processed);
+  writeRestaurantsWithMenu(processed);
 
   return processed;
 }
 
 async function main() {
   const restaurants = await getRestaurants();
-  const veganRestaurants = await getVeganRestaurants(restaurants);
-  await reprocessSavedVeganRestaurants(veganRestaurants);
+  const veganRestaurants = await getRestaurantsWithMenu(restaurants);
+  await reprocessSavedRestaurants(veganRestaurants);
 }
 
 await main().catch(console.error);

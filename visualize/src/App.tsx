@@ -8,14 +8,16 @@ import {
 
 import DOMPurify from "dompurify";
 
-import restaurants from "../../scraping/vegan.json";
+import restaurants from "../../scraping/restaurants-with-menu.json";
 import {
   createColumnHelper,
   getCoreRowModel,
+  getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import { useState } from "react";
 import { Checkbox } from "./components/ui/checkbox";
+import { DebouncedInput } from "./components/debouncedInput";
 
 type Restaurant = (typeof restaurants)[number];
 
@@ -44,14 +46,24 @@ const DINE_OUT_BASE_URL = "https://www.dineoutvancouver.com";
 const columnHelper = createColumnHelper<{ restaurant: Restaurant }>();
 
 function App() {
-  const columns = [columnHelper.accessor("restaurant", {})];
+  const columns = [
+    columnHelper.accessor("restaurant", {}),
+    columnHelper.accessor("restaurant.menu", {}),
+  ];
 
   const [data, setData] = useState(restaurantTableData);
+  const [globalFilter, setGlobalFilter] = useState("vegan");
 
   const table = useReactTable({
     columns,
     data,
     getCoreRowModel: getCoreRowModel(),
+    onGlobalFilterChange: setGlobalFilter,
+    state: {
+      globalFilter,
+    },
+    getFilteredRowModel: getFilteredRowModel(),
+    globalFilterFn: "includesString",
   });
 
   return (
@@ -74,11 +86,19 @@ function App() {
         >
           Remove duplicates
         </label>
+        <DebouncedInput
+          placeholder="Search menu keyword"
+          value={globalFilter}
+          onChange={(value) => setGlobalFilter(value)}
+        />
       </div>
       <div className="grid-cols-1 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {table.getRowModel().rows.map((row, i) => {
           return row.getVisibleCells().map((cell) => {
-            const item = cell.getValue<Restaurant>();
+            const item = cell.getValue<Restaurant | Restaurant["menu"]>();
+            if (typeof item === "string") {
+              return null;
+            }
             return (
               <a
                 href={`${DINE_OUT_BASE_URL}/${item.detailURL}`}
