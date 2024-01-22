@@ -8,7 +8,7 @@ import {
 
 import DOMPurify from "dompurify";
 
-import restaurants from "../../scraping/restaurants-with-menu.json";
+import restaurantsChunk1 from "../../scraping/dist/menu/chunks/restaurants.1.min.json";
 import {
   ColumnFiltersState,
   FilterFn,
@@ -17,38 +17,27 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Checkbox } from "./components/ui/checkbox";
 import { DebouncedInput } from "./components/debouncedInput";
+import { Progress } from "./components/ui/progress";
 
-type Restaurant = (typeof restaurants)[number];
+type Restaurant = (typeof restaurantsChunk1)[number];
 type TableData = { restaurant: Restaurant };
 
-const uniqueRestaurantPrefix = new Map<string, Restaurant>();
-for (const restaurant of restaurants) {
-  const [name] = restaurant.title.split("-");
-  uniqueRestaurantPrefix.set(name.trim(), restaurant);
-}
-
-const restaurantTableData = restaurants.map((restaurant) => ({
-  restaurant,
-}));
-
-const uniqueRestaurantTableData: TableData[] = [];
-for (const restaurant of restaurants) {
-  const [name] = restaurant.title.split("-");
-  const restaurantsWithDash = uniqueRestaurantPrefix.get(name.trim());
-
-  if (restaurantsWithDash?.title === restaurant.title) {
-    uniqueRestaurantTableData.push({ restaurant });
-  }
-}
-
 const DINE_OUT_BASE_URL = "https://www.dineoutvancouver.com";
+const TOTAL_CHUNK_COUNT = Number(process.env.DINE_OUT_CHUNK_COUNT);
+
+if (isNaN(TOTAL_CHUNK_COUNT)) {
+  throw new Error("DINE_OUT_CHUNK_COUNT is not a number");
+}
 
 const columnHelper = createColumnHelper<TableData>();
 
 function App() {
+  const [progress, setProgress] = useState(
+    Math.ceil((1 / TOTAL_CHUNK_COUNT) * 100)
+  );
   const restaurantFilterFn = useCallback<FilterFn<TableData>>(
     (row, columnId, filterValue: string) => {
       if (!filterValue || typeof filterValue !== "string") {
@@ -75,6 +64,64 @@ function App() {
     []
   );
 
+  const [allRestaurants, setAllRestaurants] =
+    useState<Restaurant[]>(restaurantsChunk1);
+
+  useEffect(() => {
+    let ignore = false;
+    let finalTimeout: ReturnType<typeof setTimeout>;
+    async function getAllRestaurants() {
+      for (let i = 2; i <= TOTAL_CHUNK_COUNT; i++) {
+        const chunk = await import(
+          `../../scraping/dist/menu/chunks/restaurants.${i}.min.json`
+        );
+        if (!ignore) {
+          setProgress(Math.ceil(((i + 1) / TOTAL_CHUNK_COUNT) * 100));
+          setAllRestaurants((allRestaurants) => [
+            ...allRestaurants,
+            ...chunk.default,
+          ]);
+        }
+      }
+      if (!ignore) {
+        finalTimeout = setTimeout(() => setProgress(100), 100);
+      }
+    }
+    getAllRestaurants().catch(console.error);
+    return () => {
+      clearTimeout(finalTimeout);
+      ignore = true;
+    };
+  }, []);
+
+  const uniqueRestaurantPrefix = useMemo(() => {
+    const uniqueRestaurantPrefix = new Map<string, Restaurant>();
+    for (const restaurant of allRestaurants) {
+      const [name] = restaurant.title.split("-");
+      uniqueRestaurantPrefix.set(name.trim(), restaurant);
+    }
+    return uniqueRestaurantPrefix;
+  }, [allRestaurants]);
+
+  const restaurantTableData = useMemo(() => {
+    return allRestaurants.map((restaurant) => ({
+      restaurant,
+    }));
+  }, [allRestaurants]);
+
+  const uniqueRestaurantTableData = useMemo(() => {
+    const uniqueRestaurantTableData: TableData[] = [];
+    for (const restaurant of allRestaurants) {
+      const [name] = restaurant.title.split("-");
+      const restaurantsWithDash = uniqueRestaurantPrefix.get(name.trim());
+
+      if (restaurantsWithDash?.title === restaurant.title) {
+        uniqueRestaurantTableData.push({ restaurant });
+      }
+    }
+    return uniqueRestaurantTableData;
+  }, [uniqueRestaurantPrefix, allRestaurants]);
+
   const columns = [
     columnHelper.accessor("restaurant", {
       enableColumnFilter: true,
@@ -82,7 +129,6 @@ function App() {
     }),
   ];
 
-  const [data, setData] = useState(restaurantTableData);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([
     {
       id: "restaurant",
@@ -90,8 +136,10 @@ function App() {
     },
   ]);
 
+  const [isUsingUniqueData, setIsUsingUniqueData] = useState<boolean>(false);
+
   const table = useReactTable({
-    data,
+    data: isUsingUniqueData ? uniqueRestaurantTableData : restaurantTableData,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -103,41 +151,46 @@ function App() {
 
   return (
     <div className="p-4">
-      <div className="flex pb-4 space-x-4">
-        {table.getAllColumns().map((column) => {
-          return (
-            <DebouncedInput
-              placeholder={`Search ${column.id} keyword`}
-              value={column.getFilterValue() as string}
-              onChange={(value) => column.setFilterValue(value)}
+      <section className="pb-3">
+        <div className="flex pb-2 space-x-4">
+          {table.getAllColumns().map((column) => {
+            return (
+              <DebouncedInput
+                placeholder={`Search ${column.id} keyword`}
+                value={column.getFilterValue() as string}
+                onChange={(value) => column.setFilterValue(value)}
+              />
+            );
+          })}
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="remove-duplicates"
+              onCheckedChange={(checked) => {
+                setIsUsingUniqueData(!!checked.valueOf());
+              }}
             />
-          );
-        })}
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="remove-duplicates"
-            onCheckedChange={(checked) => {
-              if (checked) {
-                setData(uniqueRestaurantTableData);
-              } else {
-                setData(restaurantTableData);
-              }
-            }}
-          />
-          <label
-            htmlFor="remove-duplicates"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          >
-            Remove duplicates
-          </label>
+            <label
+              htmlFor="remove-duplicates"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Remove duplicates
+            </label>
+          </div>
         </div>
-      </div>
-      <div className="grid-cols-1 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Progress
+          value={progress}
+          className={`h-0.5 transition-opacity duration-500 ease-out`}
+          style={{
+            opacity: progress === 100 ? 0 : 1,
+          }}
+        />
+      </section>
+      <section className="grid-cols-1 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {table.getRowModel().rows.map((row, i) => {
           const restaurant = row.getValue<Restaurant>("restaurant");
           return (
             <a
-              href={`${DINE_OUT_BASE_URL}/${restaurant.detailURL}`}
+              href={`${DINE_OUT_BASE_URL}${restaurant.detailURL}`}
               target="_blank"
               referrerPolicy="no-referrer"
               key={i}
@@ -165,7 +218,7 @@ function App() {
             </a>
           );
         })}
-      </div>
+      </section>
     </div>
   );
 }

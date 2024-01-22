@@ -29,6 +29,14 @@ export interface RestaurantWithMenu extends Restaurant {
   menu: string;
 }
 
+export interface TrimmedRestaurant {
+  detailURL: string;
+  description: string;
+  title: string;
+  menu: string;
+  primary_image_url: string;
+}
+
 export interface Crmtracking {
   core_listing_click: string;
   core_twitter_click: string;

@@ -2,10 +2,29 @@ import fs from "fs/promises";
 import * as cheerio from "cheerio";
 
 import dotenv from "dotenv";
+import path from "path";
 dotenv.config();
 
 const DINE_OUT_BASE_URL = "https://www.dineoutvancouver.com";
 const TOKEN = process.env.TOKEN;
+
+/**
+ *
+ * @param {string} filePath
+ * @param {string} data
+ */
+async function createFile(filePath, data) {
+  const dirname = path.dirname(filePath);
+  try {
+    await fs.mkdir(dirname, { recursive: true });
+  } catch (e) {
+    if (/** @type {any} */ (e).code !== "EEXIST") {
+      throw e;
+    }
+  }
+
+  await fs.writeFile(filePath, data);
+}
 
 /**
  *
@@ -121,7 +140,10 @@ function getDineoutApiParams(limit, skip) {
 async function getRestaurants() {
   try {
     const restaurants = JSON.parse(
-      await fs.readFile(new URL("./restaurants.json", import.meta.url), "utf8"),
+      await fs.readFile(
+        new URL("./dist/restaurants.json", import.meta.url),
+        "utf8",
+      ),
     );
     return restaurants;
   } catch (e) {
@@ -170,24 +192,9 @@ async function getRestaurants() {
     restaurants.push(...json.docs.docs);
   }
 
-  await fs.writeFile(
-    new URL("./restaurants.json", import.meta.url),
-    JSON.stringify(restaurants, null, 2),
-  );
+  await createFile("./dist/restaurants.json", JSON.stringify(restaurants));
 
   return restaurants;
-}
-
-/**
- *
- * @param {import('./index.js').RestaurantWithMenu[]} veganRestaurants
- * @returns
- */
-async function writeRestaurantsWithMenu(veganRestaurants) {
-  return fs.writeFile(
-    new URL("./restaurants-with-menu.json", import.meta.url),
-    JSON.stringify(veganRestaurants, null, 2),
-  );
 }
 
 /**
@@ -197,10 +204,13 @@ async function writeRestaurantsWithMenu(veganRestaurants) {
  */
 async function getRestaurantsWithMenu(restaurants) {
   try {
-    const veganRestaurants = JSON.parse(
-      await fs.readFile(new URL("./restaurants-with-menu.json", import.meta.url), "utf8"),
+    const restaurantsWithMenu = JSON.parse(
+      await fs.readFile(
+        new URL("./dist/menu/restaurants.min.json", import.meta.url),
+        "utf8",
+      ),
     );
-    return veganRestaurants;
+    return restaurantsWithMenu;
   } catch (e) {
     if (/** @type {any} */ (e).code !== "ENOENT") {
       throw e;
@@ -208,17 +218,18 @@ async function getRestaurantsWithMenu(restaurants) {
   }
 
   /** @type {import('./index.js').RestaurantWithMenu[]} */
-  const veganRestaurants = [];
+  const allRestaurants = [];
   for (const restaurant of restaurants) {
     console.log(`Fetching ${restaurant.title}`);
     const $ = await getDetail(restaurant.detailURL);
-    const text = $(".menu").text();
-    veganRestaurants.push(addMenuToRestaurant(restaurant, text));
+    const menuText = $(".menu").text();
+    allRestaurants.push({
+      ...restaurant,
+      menu: menuText,
+    });
   }
 
-  writeRestaurantsWithMenu(veganRestaurants);
-
-  return veganRestaurants;
+  return allRestaurants;
 }
 
 /**
@@ -226,10 +237,16 @@ async function getRestaurantsWithMenu(restaurants) {
  * @param {import('./index.js').Restaurant} restaurant
  * @param {string} menu
  */
-function addMenuToRestaurant(restaurant, menu) {
+function filterRestaurantInformation(restaurant, menu) {
   return {
-    ...restaurant,
-    menu: menu.replace(/\s\s+/g, " ").replace(/’/g, "'").trim(),
+    detailURL: restaurant.detailURL,
+    title: restaurant.title,
+    description: restaurant.description,
+    primary_image_url: restaurant.primary_image_url,
+    menu: menu
+      .replace(/\s\s+/g, " ")
+      .replace(/(\r\n|\n|\r|\u2029|\u2028)/gm, "")
+      .trim(),
   };
 }
 
@@ -237,20 +254,62 @@ function addMenuToRestaurant(restaurant, menu) {
  *
  * @param {import('./index.js').RestaurantWithMenu[]} restaurants
  */
-async function reprocessSavedRestaurants(restaurants) {
+function minifyRestaurants(restaurants) {
   const processed = restaurants.map((restaurant) =>
-    addMenuToRestaurant(restaurant, restaurant.menu),
+    filterRestaurantInformation(restaurant, restaurant.menu),
   );
-
-  writeRestaurantsWithMenu(processed);
 
   return processed;
 }
 
+/**
+ *
+ * @param {import('./index.js').TrimmedRestaurant[]} restaurants
+ */
+async function splitRestaurantToChunks(restaurants) {
+  const CHUNK_COUNT = 4;
+  const estimatedRestaurantsPerChunk = Math.ceil(
+    restaurants.length / CHUNK_COUNT,
+  );
+
+  const chunks = [];
+  for (let i = 0; i < CHUNK_COUNT; i++) {
+    chunks.push(
+      restaurants.slice(
+        i * estimatedRestaurantsPerChunk,
+        (i + 1) * estimatedRestaurantsPerChunk,
+      ),
+    );
+  }
+
+  return chunks;
+}
+
+/**
+ *
+ * @param {import('./index.js').TrimmedRestaurant[][]} chunks
+ */
+async function chunksToFiles(chunks) {
+  for (let i = 0; i < chunks.length; i++) {
+    await createFile(
+      `./dist/menu/chunks/restaurants.${i + 1}.min.json`,
+      JSON.stringify(chunks[i]),
+    );
+  }
+}
+
 async function main() {
   const restaurants = await getRestaurants();
-  const veganRestaurants = await getRestaurantsWithMenu(restaurants);
-  await reprocessSavedRestaurants(veganRestaurants);
+  const restaurantsWithMenu = await getRestaurantsWithMenu(restaurants);
+
+  const minified = minifyRestaurants(restaurantsWithMenu);
+  await createFile(
+    "./dist/menu/restaurants.min.json",
+    JSON.stringify(minified),
+  );
+
+  const chunks = await splitRestaurantToChunks(minified);
+  await chunksToFiles(chunks);
 }
 
 await main().catch(console.error);
