@@ -170,6 +170,7 @@ function App() {
           <div className="flex items-center space-x-2">
             <Checkbox
               id="remove-duplicates"
+              checked={isUsingUniqueData}
               onCheckedChange={(checked) => {
                 setIsUsingUniqueData(!!checked.valueOf());
               }}
