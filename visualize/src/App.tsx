@@ -76,7 +76,9 @@ function App() {
           `../../scraping/dist/menu/chunks/restaurants.${i}.min.json`
         );
         if (!ignore) {
-          setProgress(Math.ceil(((i + 1) / TOTAL_CHUNK_COUNT) * 100));
+          setProgress((progress) =>
+            Math.max(progress, Math.ceil(((i + 1) / TOTAL_CHUNK_COUNT) * 100))
+          );
           setAllRestaurants((allRestaurants) => [
             ...allRestaurants,
             ...chunk.default,
@@ -122,12 +124,15 @@ function App() {
     return uniqueRestaurantTableData;
   }, [uniqueRestaurantPrefix, allRestaurants]);
 
-  const columns = [
-    columnHelper.accessor("restaurant", {
-      enableColumnFilter: true,
-      filterFn: restaurantFilterFn,
-    }),
-  ];
+  const columns = useMemo(
+    () => [
+      columnHelper.accessor("restaurant", {
+        enableColumnFilter: true,
+        filterFn: restaurantFilterFn,
+      }),
+    ],
+    [restaurantFilterFn]
+  );
 
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([
     {
@@ -136,7 +141,7 @@ function App() {
     },
   ]);
 
-  const [isUsingUniqueData, setIsUsingUniqueData] = useState<boolean>(false);
+  const [isUsingUniqueData, setIsUsingUniqueData] = useState<boolean>(true);
 
   const table = useReactTable({
     data: isUsingUniqueData ? uniqueRestaurantTableData : restaurantTableData,
