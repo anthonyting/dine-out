@@ -137,7 +137,7 @@ function App() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([
     {
       id: "restaurant",
-      value: "vegan",
+      value: import.meta.env.VITE_DEFAULT_SEARCH_INPUT,
     },
   ]);
 
