@@ -1,0 +1,16 @@
+{
+  "name": "@dine-out/dine-out",
+  "private": true,
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "npm run build -w packages/"
+  },
+  "author": "",
+  "license": "AGPL-3.0",
+  "workspaces": [
+    "packages/scraping",
+    "packages/visualize"
+  ]
+}

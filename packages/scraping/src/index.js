@@ -2,11 +2,15 @@ import fs from "fs/promises";
 import * as cheerio from "cheerio";
 
 import dotenv from "dotenv";
-import path from "path";
+import path, { dirname } from "path";
+import { fileURLToPath } from "url";
 dotenv.config();
 
 const DINE_OUT_BASE_URL = "https://www.dineoutvancouver.com";
 const TOKEN = process.env.TOKEN;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  *
@@ -14,7 +18,8 @@ const TOKEN = process.env.TOKEN;
  * @param {string} data
  */
 async function createFile(filePath, data) {
-  const dirname = path.dirname(filePath);
+  const fullFilePath = path.resolve(__dirname, filePath);
+  const dirname = path.dirname(fullFilePath);
   try {
     await fs.mkdir(dirname, { recursive: true });
   } catch (e) {
@@ -23,7 +28,7 @@ async function createFile(filePath, data) {
     }
   }
 
-  await fs.writeFile(filePath, data);
+  await fs.writeFile(fullFilePath, data);
 }
 
 /**
@@ -141,7 +146,7 @@ async function getRestaurants() {
   try {
     const restaurants = JSON.parse(
       await fs.readFile(
-        new URL("./dist/restaurants.json", import.meta.url),
+        path.resolve(__dirname, "../dist/restaurants.json"),
         "utf8",
       ),
     );
@@ -192,7 +197,7 @@ async function getRestaurants() {
     restaurants.push(...json.docs.docs);
   }
 
-  await createFile("./dist/restaurants.json", JSON.stringify(restaurants));
+  await createFile("../dist/restaurants.json", JSON.stringify(restaurants));
 
   return restaurants;
 }
@@ -206,7 +211,7 @@ async function getRestaurantsWithMenu(restaurants) {
   try {
     const restaurantsWithMenu = JSON.parse(
       await fs.readFile(
-        new URL("./dist/menu/restaurants.min.json", import.meta.url),
+        path.resolve(__dirname, "../dist/menu/restaurants.min.json"),
         "utf8",
       ),
     );
@@ -293,7 +298,7 @@ async function splitRestaurantToChunks(restaurants) {
 async function chunksToFiles(chunks) {
   for (let i = 0; i < chunks.length; i++) {
     await createFile(
-      `./dist/menu/chunks/restaurants.${i + 1}.min.json`,
+      `../dist/menu/chunks/restaurants.${i + 1}.min.json`,
       JSON.stringify(chunks[i]),
     );
   }
@@ -305,7 +310,7 @@ async function main() {
 
   const minified = minifyRestaurants(restaurantsWithMenu);
   await createFile(
-    "./dist/menu/restaurants.min.json",
+    "../dist/menu/restaurants.min.json",
     JSON.stringify(minified),
   );
 
