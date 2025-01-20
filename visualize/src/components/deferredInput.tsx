@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import { Input, InputProps } from "./ui/input";
 
-export function DebouncedInput({
+export function DeferredInput({
   value: initialValue,
   onChange,
-  debounce = 100,
+  debounce = 1000,
   ...props
 }: {
   value: string;
@@ -12,18 +12,11 @@ export function DebouncedInput({
   debounce?: number;
 } & Omit<InputProps, "onChange">) {
   const [value, setValue] = useState(initialValue);
+  const deferredQuery = useDeferredValue(value);
 
   useEffect(() => {
-    setValue(initialValue);
-  }, [initialValue]);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      onChange(value);
-    }, debounce);
-
-    return () => clearTimeout(timeout);
-  }, [debounce, onChange, value]);
+    onChange(deferredQuery);
+  }, [onChange, deferredQuery]);
 
   return (
     <Input

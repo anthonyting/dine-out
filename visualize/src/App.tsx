@@ -7,6 +7,7 @@ import {
 } from "./components/ui/card";
 
 import DOMPurify from "dompurify";
+import useLocalStorageState from "use-local-storage-state";
 
 import restaurantsChunk1 from "../../scraping/dist/menu/chunks/restaurants.1.min.json";
 import {
@@ -17,9 +18,15 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  AnchorHTMLAttributes,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { Checkbox } from "./components/ui/checkbox";
-import { DebouncedInput } from "./components/debouncedInput";
+import { DeferredInput } from "./components/deferredInput";
 import { Progress } from "./components/ui/progress";
 
 type Restaurant = (typeof restaurantsChunk1)[number];
@@ -142,6 +149,11 @@ function App() {
   ]);
 
   const [isUsingUniqueData, setIsUsingUniqueData] = useState<boolean>(true);
+  const [selectedRestaurants, setSelectedRestaurants] = useLocalStorageState<
+    Record<string, boolean>
+  >("selectedRestaurants", {
+    defaultValue: {},
+  });
 
   const table = useReactTable({
     data: isUsingUniqueData ? uniqueRestaurantTableData : restaurantTableData,
@@ -154,16 +166,23 @@ function App() {
     onColumnFiltersChange: setColumnFilters,
   });
 
+  const columnCallbacks = useMemo(() => {
+    return table
+      .getAllColumns()
+      .map((column) => (value: string) => column.setFilterValue(value));
+  }, [table]);
+
   return (
     <div className="p-4">
       <section className="pb-3">
         <div className="flex pb-2 space-x-4">
-          {table.getAllColumns().map((column) => {
+          {table.getAllColumns().map((column, i) => {
             return (
-              <DebouncedInput
+              <DeferredInput
+                key={column.id}
                 placeholder={`Search ${column.id} keyword`}
                 value={column.getFilterValue() as string}
-                onChange={(value) => column.setFilterValue(value)}
+                onChange={columnCallbacks[i]}
               />
             );
           })}
@@ -194,34 +213,60 @@ function App() {
       <section className="grid-cols-1 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {table.getRowModel().rows.map((row, i) => {
           const restaurant = row.getValue<Restaurant>("restaurant");
+          const linkProps: AnchorHTMLAttributes<HTMLAnchorElement> = {
+            href: `${DINE_OUT_BASE_URL}${restaurant.detailURL}`,
+            target: "_blank",
+            referrerPolicy: "no-referrer",
+            onClick: (e) => e.stopPropagation(),
+          };
           return (
-            <a
-              href={`${DINE_OUT_BASE_URL}${restaurant.detailURL}`}
-              target="_blank"
-              referrerPolicy="no-referrer"
-              key={i}
+            <Card
+              className="h-full"
+              key={restaurant.id}
+              onClick={() => {
+                setSelectedRestaurants({
+                  ...selectedRestaurants,
+                  [restaurant.id]: !selectedRestaurants[restaurant.id],
+                });
+              }}
             >
-              <Card className="h-full">
-                <CardHeader>
+              <CardHeader className="flex-row justify-between">
+                <a
+                  {...linkProps}
+                  className="text-blue-600 dark:text-blue-500 hover:underline"
+                >
                   <CardTitle>
                     {i + 1}. {restaurant.title}
                   </CardTitle>
-                  <CardDescription
-                    dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(restaurant.description),
-                    }}
-                  ></CardDescription>
-                </CardHeader>
-                <CardContent>
+                </a>
+                <Checkbox
+                  className="!my-0 h-6 w-6 ml-2"
+                  id={`include-${restaurant.id}`}
+                  checked={!!selectedRestaurants[restaurant.id]}
+                  onCheckedChange={(checked) => {
+                    setSelectedRestaurants({
+                      ...selectedRestaurants,
+                      [restaurant.id]: !!checked,
+                    });
+                  }}
+                />
+              </CardHeader>
+
+              <CardContent className="flex flex-col gap-y-3">
+                <CardDescription
+                  dangerouslySetInnerHTML={{
+                    __html: DOMPurify.sanitize(restaurant.description),
+                  }}
+                />
+                <a {...linkProps} className="w-80">
                   <img
                     src={restaurant.primary_image_url}
-                    width="300px"
                     alt={restaurant.title}
                     loading="lazy"
                   />
-                </CardContent>
-              </Card>
-            </a>
+                </a>
+              </CardContent>
+            </Card>
           );
         })}
       </section>

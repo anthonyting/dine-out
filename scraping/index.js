@@ -239,6 +239,7 @@ async function getRestaurantsWithMenu(restaurants) {
  */
 function filterRestaurantInformation(restaurant, menu) {
   return {
+    id: restaurant.recid,
     detailURL: restaurant.detailURL,
     title: restaurant.title,
     description: restaurant.description,
