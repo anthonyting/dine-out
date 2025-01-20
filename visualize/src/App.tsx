@@ -84,7 +84,13 @@ function App() {
         );
         if (!ignore) {
           setProgress((progress) =>
-            Math.max(progress, Math.ceil(((i + 1) / TOTAL_CHUNK_COUNT) * 100))
+            Math.min(
+              Math.max(
+                progress,
+                Math.ceil(((i + 1) / TOTAL_CHUNK_COUNT) * 100)
+              ),
+              100
+            )
           );
           setAllRestaurants((allRestaurants) => [
             ...allRestaurants,
@@ -149,14 +155,39 @@ function App() {
   ]);
 
   const [isUsingUniqueData, setIsUsingUniqueData] = useState<boolean>(true);
+  const [showOnlySelected, setShowOnlySelected] = useState<boolean>(false);
   const [selectedRestaurants, setSelectedRestaurants] = useLocalStorageState<
     Record<string, boolean>
   >("selectedRestaurants", {
     defaultValue: {},
   });
 
+  // todo: move state handling/filters to tanstack table
+  const processSelectedRestaurants = useCallback(
+    (selected: typeof selectedRestaurants, data: TableData[]) =>
+      data.filter((value) => selected[value.restaurant.id]),
+    []
+  );
+
+  const unProcessedData = isUsingUniqueData
+    ? uniqueRestaurantTableData
+    : restaurantTableData;
+
+  const data = useMemo(
+    () =>
+      showOnlySelected
+        ? processSelectedRestaurants(selectedRestaurants, unProcessedData)
+        : unProcessedData,
+    [
+      showOnlySelected,
+      selectedRestaurants,
+      unProcessedData,
+      processSelectedRestaurants,
+    ]
+  );
+
   const table = useReactTable({
-    data: isUsingUniqueData ? uniqueRestaurantTableData : restaurantTableData,
+    data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -172,10 +203,12 @@ function App() {
       .map((column) => (value: string) => column.setFilterValue(value));
   }, [table]);
 
+  const rows = table.getRowModel().rows;
+
   return (
     <div className="p-4">
       <section className="pb-3">
-        <div className="flex pb-2 space-x-4">
+        <div className="flex space-x-4">
           {table.getAllColumns().map((column, i) => {
             return (
               <DeferredInput
@@ -186,12 +219,36 @@ function App() {
               />
             );
           })}
+        </div>
+        <Progress
+          value={progress}
+          className={`h-0.5 transition-opacity duration-500 ease-out my-2`}
+          style={{
+            opacity: progress === 100 ? 0 : 1,
+          }}
+        />
+        <div className="flex flex-row gap-3">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="show-only-selected"
+              checked={showOnlySelected}
+              onCheckedChange={(checked) => {
+                setShowOnlySelected(!!checked);
+              }}
+            />
+            <label
+              htmlFor="show-only-selected"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Show only selected
+            </label>
+          </div>
           <div className="flex items-center space-x-2">
             <Checkbox
               id="remove-duplicates"
               checked={isUsingUniqueData}
               onCheckedChange={(checked) => {
-                setIsUsingUniqueData(!!checked.valueOf());
+                setIsUsingUniqueData(!!checked);
               }}
             />
             <label
@@ -202,73 +259,71 @@ function App() {
             </label>
           </div>
         </div>
-        <Progress
-          value={progress}
-          className={`h-0.5 transition-opacity duration-500 ease-out`}
-          style={{
-            opacity: progress === 100 ? 0 : 1,
-          }}
-        />
       </section>
       <section className="grid-cols-1 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {table.getRowModel().rows.map((row, i) => {
-          const restaurant = row.getValue<Restaurant>("restaurant");
-          const linkProps: AnchorHTMLAttributes<HTMLAnchorElement> = {
-            href: `${DINE_OUT_BASE_URL}${restaurant.detailURL}`,
-            target: "_blank",
-            referrerPolicy: "no-referrer",
-            onClick: (e) => e.stopPropagation(),
-          };
-          return (
-            <Card
-              className="h-full"
-              key={restaurant.id}
-              onClick={() => {
-                setSelectedRestaurants({
-                  ...selectedRestaurants,
-                  [restaurant.id]: !selectedRestaurants[restaurant.id],
-                });
-              }}
-            >
-              <CardHeader className="flex-row justify-between">
-                <a
-                  {...linkProps}
-                  className="text-blue-600 dark:text-blue-500 hover:underline"
-                >
-                  <CardTitle>
-                    {i + 1}. {restaurant.title}
-                  </CardTitle>
-                </a>
-                <Checkbox
-                  className="!my-0 h-6 w-6 ml-2"
-                  id={`include-${restaurant.id}`}
-                  checked={!!selectedRestaurants[restaurant.id]}
-                  onCheckedChange={(checked) => {
-                    setSelectedRestaurants({
-                      ...selectedRestaurants,
-                      [restaurant.id]: !!checked,
-                    });
-                  }}
-                />
-              </CardHeader>
-
-              <CardContent className="flex flex-col gap-y-3">
-                <CardDescription
-                  dangerouslySetInnerHTML={{
-                    __html: DOMPurify.sanitize(restaurant.description),
-                  }}
-                />
-                <a {...linkProps} className="w-80">
-                  <img
-                    src={restaurant.primary_image_url}
-                    alt={restaurant.title}
-                    loading="lazy"
+        {rows.length ? (
+          rows.map((row, i) => {
+            const restaurant = row.getValue<Restaurant>("restaurant");
+            const linkProps: AnchorHTMLAttributes<HTMLAnchorElement> = {
+              href: `${DINE_OUT_BASE_URL}${restaurant.detailURL}`,
+              target: "_blank",
+              referrerPolicy: "no-referrer",
+              onClick: (e) => e.stopPropagation(),
+            };
+            return (
+              <Card
+                className="h-full"
+                key={restaurant.id}
+                onClick={() => {
+                  setSelectedRestaurants({
+                    ...selectedRestaurants,
+                    [restaurant.id]: !selectedRestaurants[restaurant.id],
+                  });
+                }}
+              >
+                <CardHeader className="flex-row justify-between">
+                  <a
+                    {...linkProps}
+                    className="text-blue-600 dark:text-blue-500 hover:underline"
+                  >
+                    <CardTitle>
+                      {i + 1}. {restaurant.title}
+                    </CardTitle>
+                  </a>
+                  <Checkbox
+                    className="!my-0 h-6 w-6 ml-2"
+                    id={`include-${restaurant.id}`}
+                    checked={!!selectedRestaurants[restaurant.id]}
+                    onCheckedChange={(checked) => {
+                      setSelectedRestaurants({
+                        ...selectedRestaurants,
+                        [restaurant.id]: !!checked,
+                      });
+                    }}
+                    title={`Select ${restaurant.title}`}
                   />
-                </a>
-              </CardContent>
-            </Card>
-          );
-        })}
+                </CardHeader>
+
+                <CardContent className="flex flex-col gap-y-3">
+                  <CardDescription
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(restaurant.description),
+                    }}
+                  />
+                  <a {...linkProps} className="w-80">
+                    <img
+                      src={restaurant.primary_image_url}
+                      alt={restaurant.title}
+                      loading="lazy"
+                    />
+                  </a>
+                </CardContent>
+              </Card>
+            );
+          })
+        ) : (
+          <p className="text-xl p-4">No restaurants available</p>
+        )}
       </section>
     </div>
   );
