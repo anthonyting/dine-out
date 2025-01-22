@@ -6,7 +6,7 @@ const scrapingDistPath = path.resolve(
 
 module.exports = {
   async onPreBuild({ utils }) {
-    await utils.cache.restore();
+    await utils.cache.restore(scrapingDistPath);
 
     const files = await utils.cache.list({ depth: 10 });
     console.log("Cached files", files);
