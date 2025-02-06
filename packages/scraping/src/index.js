@@ -157,17 +157,17 @@ async function getRestaurants() {
     }
   }
 
-  const TOTAL_COUNT = 400;
+  let TOTAL_COUNT = 500;
   const TOTAL_RESULT_SIZE = 1_000_000;
   const SIZE_LIMIT_PER_REQUEST = 200_000;
-
-  const REQUESTS_TO_PERFORM =
-    Math.ceil(TOTAL_RESULT_SIZE / SIZE_LIMIT_PER_REQUEST) + 2;
-  const LIMIT_PER_REQUEST = Math.ceil(TOTAL_COUNT / REQUESTS_TO_PERFORM);
-
+  let REQUESTS_TO_PERFORM = Infinity;
   const restaurants = [];
 
   for (let i = 0; i < REQUESTS_TO_PERFORM; i++) {
+    let REQUESTS_TO_PERFORM =
+      Math.ceil(TOTAL_RESULT_SIZE / SIZE_LIMIT_PER_REQUEST) + 2;
+    const LIMIT_PER_REQUEST = Math.ceil(TOTAL_COUNT / REQUESTS_TO_PERFORM);
+
     const res = await fetch(
       `${DINE_OUT_BASE_URL}/includes/rest_v2/plugins_listings_listings/find/?json=${JSON.stringify(
         getDineoutApiParams(LIMIT_PER_REQUEST, i * LIMIT_PER_REQUEST),
@@ -193,6 +193,8 @@ async function getRestaurants() {
     if (json.docs.docs.length === 0) {
       break;
     }
+
+    TOTAL_COUNT = json.docs.count;
 
     restaurants.push(...json.docs.docs);
   }
