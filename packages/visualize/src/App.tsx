@@ -57,7 +57,7 @@ function App() {
 
       const restaurant = row.getValue<Restaurant>(columnId);
 
-      const valuesToCheck = filterValue.split(" ");
+      const valuesToCheck = filterValue.toLowerCase().split(" ");
       if (
         valuesToCheck.every((value) =>
           restaurant.menu.toLowerCase().includes(value)
