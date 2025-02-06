@@ -12,6 +12,9 @@ const TOKEN = process.env.TOKEN;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const RESTAURANT_JSON_FILE = "../dist/restaurants.json";
+const RESTAURANT_MENU_JSON_FILE = "../dist/menu/menus.json";
+
 /**
  *
  * @param {string} filePath
@@ -145,10 +148,7 @@ function getDineoutApiParams(limit, skip) {
 async function getRestaurants() {
   try {
     const restaurants = JSON.parse(
-      await fs.readFile(
-        path.resolve(__dirname, "../dist/restaurants.json"),
-        "utf8",
-      ),
+      await fs.readFile(path.resolve(__dirname, RESTAURANT_JSON_FILE), "utf8"),
     );
     return restaurants;
   } catch (e) {
@@ -197,7 +197,7 @@ async function getRestaurants() {
     restaurants.push(...json.docs.docs);
   }
 
-  await createFile("../dist/restaurants.json", JSON.stringify(restaurants));
+  await createFile(RESTAURANT_JSON_FILE, JSON.stringify(restaurants));
 
   return restaurants;
 }
@@ -205,13 +205,13 @@ async function getRestaurants() {
 /**
  *
  * @param {import("./index.js").Restaurant[]} restaurants
- * @returns {Promise<import('./index.js').RestaurantWithMenu[]>}
+ * @returns {Promise<import('./index.js').MenuMap>}
  */
-async function getRestaurantsWithMenu(restaurants) {
+async function getRestaurantMenus(restaurants) {
   try {
     const restaurantsWithMenu = JSON.parse(
       await fs.readFile(
-        path.resolve(__dirname, "../dist/menu/restaurants.min.json"),
+        path.resolve(__dirname, RESTAURANT_MENU_JSON_FILE),
         "utf8",
       ),
     );
@@ -222,47 +222,47 @@ async function getRestaurantsWithMenu(restaurants) {
     }
   }
 
-  /** @type {import('./index.js').RestaurantWithMenu[]} */
-  const allRestaurants = [];
+  /** @type {import('./index.js').MenuMap} */
+  const allMenus = {};
   for (const restaurant of restaurants) {
     console.log(`Fetching ${restaurant.title}`);
     const $ = await getDetail(restaurant.detailURL);
     const menuText = $(".menu").text();
-    allRestaurants.push({
-      ...restaurant,
-      menu: menuText,
-    });
+    allMenus[restaurant.recid] = menuText
+      .replace(/\s\s+/g, " ")
+      .replace(/(\r\n|\n|\r|\u2029|\u2028)/gm, "")
+      .trim();
   }
 
-  return allRestaurants;
+  await createFile(RESTAURANT_MENU_JSON_FILE, JSON.stringify(allMenus));
+
+  return allMenus;
 }
 
 /**
  *
  * @param {import('./index.js').Restaurant} restaurant
- * @param {string} menu
+ * @param {import("./index.js").MenuMap} menuMap
  */
-function filterRestaurantInformation(restaurant, menu) {
+function filterRestaurantInformation(restaurant, menuMap) {
   return {
     id: restaurant.recid,
     detailURL: restaurant.detailURL,
     title: restaurant.title,
     description: restaurant.description,
     primary_image_url: restaurant.primary_image_url,
-    menu: menu
-      .replace(/\s\s+/g, " ")
-      .replace(/(\r\n|\n|\r|\u2029|\u2028)/gm, "")
-      .trim(),
+    menu: menuMap[restaurant.recid],
   };
 }
 
 /**
  *
- * @param {import('./index.js').RestaurantWithMenu[]} restaurants
+ * @param {import('./index.js').Restaurant[]} restaurants
+ * @param {import('./index.js').MenuMap} menuMap
  */
-function minifyRestaurants(restaurants) {
+function minifyRestaurants(restaurants, menuMap) {
   const processed = restaurants.map((restaurant) =>
-    filterRestaurantInformation(restaurant, restaurant.menu),
+    filterRestaurantInformation(restaurant, menuMap),
   );
 
   return processed;
@@ -306,9 +306,9 @@ async function chunksToFiles(chunks) {
 
 async function main() {
   const restaurants = await getRestaurants();
-  const restaurantsWithMenu = await getRestaurantsWithMenu(restaurants);
+  const restaurantMenus = await getRestaurantMenus(restaurants);
 
-  const minified = minifyRestaurants(restaurantsWithMenu);
+  const minified = minifyRestaurants(restaurants, restaurantMenus);
   await createFile(
     "../dist/menu/restaurants.min.json",
     JSON.stringify(minified),

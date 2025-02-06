@@ -25,9 +25,7 @@ export interface Restaurant {
   amenities: Amenities;
 }
 
-export interface RestaurantWithMenu extends Restaurant {
-  menu: string;
-}
+export type MenuMap = Record<string, string>;
 
 export interface TrimmedRestaurant {
   detailURL: string;
