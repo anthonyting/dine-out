@@ -26,8 +26,8 @@ import {
   useState,
 } from "react";
 import { Checkbox } from "./components/ui/checkbox";
-import { DeferredInput } from "./components/deferredInput";
 import { Progress } from "./components/ui/progress";
+import { Input } from "./components/ui/input";
 
 type Restaurant = (typeof restaurantsChunk1)[number];
 type TableData = { restaurant: Restaurant };
@@ -200,25 +200,19 @@ function App() {
     onColumnFiltersChange: setColumnFilters,
   });
 
-  const columnCallbacks = useMemo(() => {
-    return table
-      .getAllColumns()
-      .map((column) => (value: string) => column.setFilterValue(value));
-  }, [table]);
-
   const rows = table.getRowModel().rows;
 
   return (
     <div className="p-4">
       <section className="pb-3">
         <div className="flex space-x-4">
-          {table.getAllColumns().map((column, i) => {
+          {table.getAllColumns().map((column) => {
             return (
-              <DeferredInput
+              <Input
                 key={column.id}
                 placeholder={`Search ${column.id} keyword`}
-                value={column.getFilterValue() as string}
-                onChange={columnCallbacks[i]}
+                value={column.getFilterValue() as string ?? ''}
+                onChange={(e) => column.setFilterValue(e.target.value)}
               />
             );
           })}
