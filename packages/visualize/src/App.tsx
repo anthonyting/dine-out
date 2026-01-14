@@ -307,15 +307,24 @@ function App() {
                 <CardContent className="flex flex-col gap-y-3">
                   <CardDescription
                     dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(restaurant.description ?? 'No description'),
+                      __html: DOMPurify.sanitize(
+                        restaurant.description ?? "No description"
+                      ),
                     }}
                   />
                   <a {...linkProps} className="w-80">
-                    <img
-                      src={restaurant.primary_image_url}
-                      alt={restaurant.title}
-                      loading="lazy"
-                    />
+                    {restaurant.primary_image_url ? (
+                      <img
+                        className="max-h-[300px]"
+                        src={restaurant.primary_image_url}
+                        alt={restaurant.title}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="bg-black/20 text-center align-middle h-[300px] w-full leading-[300px] text-muted-foreground">
+                        No image available
+                      </div>
+                    )}
                   </a>
                 </CardContent>
               </Card>
