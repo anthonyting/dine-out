@@ -307,7 +307,7 @@ function App() {
                 <CardContent className="flex flex-col gap-y-3">
                   <CardDescription
                     dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(restaurant.description),
+                      __html: DOMPurify.sanitize(restaurant.description ?? 'No description'),
                     }}
                   />
                   <a {...linkProps} className="w-80">
