@@ -59,8 +59,11 @@ function App() {
 
       const valuesToCheck = filterValue.toLowerCase().split(" ");
       if (
-        valuesToCheck.every((value) =>
-          restaurant.menu.toLowerCase().includes(value)
+        valuesToCheck.every(
+          (value) =>
+            restaurant.menu.toLowerCase().includes(value) ||
+            restaurant.title.toLowerCase().includes(value) ||
+            restaurant.description?.toLowerCase().includes(value)
         )
       ) {
         return true;
@@ -273,7 +276,7 @@ function App() {
             return (
               <Card
                 className="h-full"
-                key={restaurant.id}
+                key={`${restaurant.id}-${i}`}
                 onClick={() => {
                   setSelectedRestaurants({
                     ...selectedRestaurants,
