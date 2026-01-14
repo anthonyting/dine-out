@@ -1,12 +1,3 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./components/ui/card";
-
-import DOMPurify from "dompurify";
 import useLocalStorageState from "use-local-storage-state";
 
 import restaurantsChunk1 from "../../scraping/dist/menu/chunks/restaurants.1.min.json";
@@ -18,21 +9,13 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  AnchorHTMLAttributes,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Checkbox } from "./components/ui/checkbox";
 import { Progress } from "./components/ui/progress";
+import { Restaurant, TableData } from "./types";
+import { RestaurantCard } from "./components/RestaurantCard";
 import { Input } from "./components/ui/input";
 
-type Restaurant = (typeof restaurantsChunk1)[number];
-type TableData = { restaurant: Restaurant };
-
-const DINE_OUT_BASE_URL = "https://www.dineoutvancouver.com";
 const TOTAL_CHUNK_COUNT = Number(process.env.DINE_OUT_CHUNK_COUNT);
 
 if (isNaN(TOTAL_CHUNK_COUNT)) {
@@ -261,70 +244,14 @@ function App() {
         {rows.length ? (
           rows.map((row, i) => {
             const restaurant = row.getValue<Restaurant>("restaurant");
-            const linkProps: AnchorHTMLAttributes<HTMLAnchorElement> = {
-              href: `${DINE_OUT_BASE_URL}${restaurant.detailURL}`,
-              target: "_blank",
-              referrerPolicy: "no-referrer",
-              onClick: (e) => e.stopPropagation(),
-            };
             return (
-              <Card
-                className="h-full"
+              <RestaurantCard
                 key={`${restaurant.id}-${i}`}
-                onClick={() => {
-                  setSelectedRestaurants({
-                    ...selectedRestaurants,
-                    [restaurant.id]: !selectedRestaurants[restaurant.id],
-                  });
-                }}
-              >
-                <CardHeader className="flex-row justify-between">
-                  <a
-                    {...linkProps}
-                    className="text-blue-600 dark:text-blue-500 hover:underline"
-                  >
-                    <CardTitle>
-                      {i + 1}. {restaurant.title}
-                    </CardTitle>
-                  </a>
-                  <Checkbox
-                    className="!my-0 h-6 w-6 ml-2"
-                    id={`include-${restaurant.id}`}
-                    checked={!!selectedRestaurants[restaurant.id]}
-                    onCheckedChange={(checked) => {
-                      setSelectedRestaurants({
-                        ...selectedRestaurants,
-                        [restaurant.id]: !!checked,
-                      });
-                    }}
-                    title={`Select ${restaurant.title}`}
-                  />
-                </CardHeader>
-
-                <CardContent className="flex flex-col gap-y-3">
-                  <CardDescription
-                    dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(
-                        restaurant.description ?? "No description"
-                      ),
-                    }}
-                  />
-                  <a {...linkProps} className="w-80">
-                    {restaurant.primary_image_url ? (
-                      <img
-                        className="max-h-[300px]"
-                        src={restaurant.primary_image_url}
-                        alt={restaurant.title}
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="bg-black/20 text-center align-middle h-[300px] w-full leading-[300px] text-muted-foreground">
-                        No image available
-                      </div>
-                    )}
-                  </a>
-                </CardContent>
-              </Card>
+                restaurant={restaurant}
+                index={i}
+                setSelectedRestaurants={setSelectedRestaurants}
+                isSelected={selectedRestaurants[restaurant.id] ?? false}
+              />
             );
           })
         ) : (

@@ -8,7 +8,13 @@ const DINE_OUT_CHUNK_COUNT = fs.readdirSync(
 ).length;
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react({
+      babel: {
+        plugins: ["babel-plugin-react-compiler"],
+      },
+    }),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
