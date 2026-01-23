@@ -15,6 +15,7 @@ import { Progress } from "./components/ui/progress";
 import { Restaurant, TableData } from "./types";
 import { RestaurantCard } from "./components/RestaurantCard";
 import { Input } from "./components/ui/input";
+import { Button } from "./components/ui/button";
 
 const TOTAL_CHUNK_COUNT = Number(process.env.DINE_OUT_CHUNK_COUNT);
 
@@ -24,37 +25,33 @@ if (isNaN(TOTAL_CHUNK_COUNT)) {
 
 const columnHelper = createColumnHelper<TableData>();
 
+const matchesSearch = (restaurant: Restaurant, filterValue: string) => {
+  if (!filterValue || typeof filterValue !== "string") {
+    return true;
+  }
+
+  const valuesToCheck = filterValue.toLowerCase().split(" ");
+  return valuesToCheck.every(
+    (value) =>
+      restaurant.menu.toLowerCase().includes(value) ||
+      restaurant.title.toLowerCase().includes(value) ||
+      restaurant.description?.toLowerCase().includes(value),
+  );
+};
+
 function App() {
   const [progress, setProgress] = useState(
-    Math.ceil((1 / TOTAL_CHUNK_COUNT) * 100)
+    Math.ceil((1 / TOTAL_CHUNK_COUNT) * 100),
   );
   const restaurantFilterFn = useCallback<FilterFn<TableData>>(
     (row, columnId, filterValue: string) => {
-      if (!filterValue || typeof filterValue !== "string") {
-        return true;
-      }
-
       if (columnId !== "restaurant") {
         return true;
       }
 
-      const restaurant = row.getValue<Restaurant>(columnId);
-
-      const valuesToCheck = filterValue.toLowerCase().split(" ");
-      if (
-        valuesToCheck.every(
-          (value) =>
-            restaurant.menu.toLowerCase().includes(value) ||
-            restaurant.title.toLowerCase().includes(value) ||
-            restaurant.description?.toLowerCase().includes(value)
-        )
-      ) {
-        return true;
-      }
-
-      return false;
+      return matchesSearch(row.getValue<Restaurant>(columnId), filterValue);
     },
-    []
+    [],
   );
 
   const [allRestaurants, setAllRestaurants] =
@@ -73,10 +70,10 @@ function App() {
             Math.min(
               Math.max(
                 progress,
-                Math.ceil(((i + 1) / TOTAL_CHUNK_COUNT) * 100)
+                Math.ceil(((i + 1) / TOTAL_CHUNK_COUNT) * 100),
               ),
-              100
-            )
+              100,
+            ),
           );
           setAllRestaurants((allRestaurants) => [
             ...allRestaurants,
@@ -130,7 +127,7 @@ function App() {
         filterFn: restaurantFilterFn,
       }),
     ],
-    [restaurantFilterFn]
+    [restaurantFilterFn],
   );
 
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([
@@ -152,7 +149,7 @@ function App() {
   const processSelectedRestaurants = useCallback(
     (selected: typeof selectedRestaurants, data: TableData[]) =>
       data.filter((value) => selected[value.restaurant.id]),
-    []
+    [],
   );
 
   const unProcessedData = isUsingUniqueData
@@ -169,7 +166,7 @@ function App() {
       selectedRestaurants,
       unProcessedData,
       processSelectedRestaurants,
-    ]
+    ],
   );
 
   const table = useReactTable({
@@ -185,6 +182,23 @@ function App() {
 
   const rows = table.getRowModel().rows;
 
+  const invertSelection = useCallback(() => {
+    const searchFilter =
+      (table.getColumn("restaurant")?.getFilterValue() as string) ?? "";
+
+    const visibleDataBeforeToggle = unProcessedData.filter((item) =>
+      matchesSearch(item.restaurant, searchFilter),
+    );
+
+    setSelectedRestaurants((prev) => {
+      const next = { ...prev };
+      visibleDataBeforeToggle.forEach((item) => {
+        next[item.restaurant.id] = !prev[item.restaurant.id];
+      });
+      return next;
+    });
+  }, [unProcessedData, table, setSelectedRestaurants]);
+
   return (
     <div className="p-4">
       <section className="pb-3">
@@ -194,7 +208,7 @@ function App() {
               <Input
                 key={column.id}
                 placeholder={`Search ${column.id} keyword`}
-                value={column.getFilterValue() as string ?? ''}
+                value={(column.getFilterValue() as string) ?? ""}
                 onChange={(e) => column.setFilterValue(e.target.value)}
               />
             );
@@ -222,6 +236,12 @@ function App() {
             >
               Show only selected
             </label>
+            <Button onClick={invertSelection} size="sm">
+              Invert selection
+            </Button>
+            <Button onClick={() => setSelectedRestaurants({})} size="sm">
+              Deselect all
+            </Button>
           </div>
           <div className="flex items-center space-x-2">
             <Checkbox
