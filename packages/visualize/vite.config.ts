@@ -2,9 +2,10 @@ import path from "path";
 import react from "@vitejs/plugin-react";
 import fs from "fs";
 import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
 
 const DINE_OUT_CHUNK_COUNT = fs.readdirSync(
-  path.resolve(__dirname, "../scraping/dist/menu/chunks")
+  path.resolve(__dirname, "../scraping/dist/menu/chunks"),
 ).length;
 
 export default defineConfig({
@@ -14,6 +15,7 @@ export default defineConfig({
         plugins: ["babel-plugin-react-compiler"],
       },
     }),
+    tailwindcss(),
   ],
   resolve: {
     alias: {

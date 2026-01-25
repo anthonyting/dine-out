@@ -45,14 +45,14 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
       <CardHeader className="flex-row justify-between">
         <a
           {...linkProps}
-          className="text-blue-600 dark:text-blue-500 hover:underline"
+          className="text-2xl text-blue-600 dark:text-blue-500 hover:underline"
         >
           <CardTitle>
             {index + 1}. {restaurant.title}
           </CardTitle>
         </a>
         <Checkbox
-          className="!my-0 h-6 w-6 ml-2"
+          className="my-0! h-6 w-6 ml-2"
           id={`include-${restaurant.id}`}
           checked={isSelected}
           title={`Select ${restaurant.title}`}
