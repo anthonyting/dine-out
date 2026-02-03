@@ -231,7 +231,7 @@ function App() {
             opacity: progress === 100 ? 0 : 1,
           }}
         />
-        <div className="flex flex-row gap-3 flex-wrap gap-y-2">
+        <div className="flex flex-row gap-3 flex-wrap gap-y-2 mb-1">
           <div className="flex items-center space-x-2 flex-wrap gap-y-2">
             <Checkbox
               id="show-only-selected"
