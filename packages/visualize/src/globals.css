@@ -122,7 +122,8 @@
     @apply bg-background text-foreground;
   }
   button,
+  [role="menuitem"],
   [role="button"] {
-    cursor: pointer;
+    cursor: pointer !important;
   }
 }

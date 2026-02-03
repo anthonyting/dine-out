@@ -16,6 +16,14 @@ import { Restaurant, TableData } from "./types";
 import { RestaurantCard } from "./components/RestaurantCard";
 import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { useRef } from "react";
+import { exportSelectedData, importSelectedData } from "./lib/dataTransfer";
 
 const TOTAL_CHUNK_COUNT = Number(process.env.DINE_OUT_CHUNK_COUNT);
 
@@ -145,6 +153,8 @@ function App() {
     defaultValue: {},
   });
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // todo: move state handling/filters to tanstack table
   const processSelectedRestaurants = useCallback(
     (selected: typeof selectedRestaurants, data: TableData[]) =>
@@ -242,6 +252,43 @@ function App() {
             <Button onClick={() => setSelectedRestaurants({})} size="sm">
               Deselect all
             </Button>
+            {/* todo: use an input component with type file instead of this */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: "none" }}
+              accept=".json"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  importSelectedData(
+                    file,
+                    (data) => {
+                      setSelectedRestaurants(data);
+                      alert("Successfully imported selected restaurants");
+                    },
+                    (error) => {
+                      alert(error);
+                    },
+                  );
+                }
+              }}
+            />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">Import/Export</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                  Import
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => exportSelectedData(selectedRestaurants)}
+                >
+                  Export
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div className="flex items-center space-x-2">
             <Checkbox
