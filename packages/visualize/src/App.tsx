@@ -231,8 +231,8 @@ function App() {
             opacity: progress === 100 ? 0 : 1,
           }}
         />
-        <div className="flex flex-row gap-3">
-          <div className="flex items-center space-x-2">
+        <div className="flex flex-row gap-3 flex-wrap gap-y-2">
+          <div className="flex items-center space-x-2 flex-wrap gap-y-2">
             <Checkbox
               id="show-only-selected"
               checked={showOnlySelected}
@@ -240,16 +240,21 @@ function App() {
                 setShowOnlySelected(!!checked);
               }}
             />
-            <label
-              htmlFor="show-only-selected"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Show only selected
-            </label>
-            <Button onClick={invertSelection} size="sm">
-              Invert selection
-            </Button>
-            <Button onClick={() => setSelectedRestaurants({})} size="sm">
+            <label htmlFor="show-only-selected">Show only selected</label>
+          </div>
+          <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+            <Checkbox
+              id="remove-duplicates"
+              checked={isUsingUniqueData}
+              onCheckedChange={(checked) => {
+                setIsUsingUniqueData(!!checked);
+              }}
+            />
+            <label htmlFor="remove-duplicates">Remove duplicates</label>
+          </div>
+          <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+            <Button onClick={invertSelection}>Invert selection</Button>
+            <Button onClick={() => setSelectedRestaurants({})}>
               Deselect all
             </Button>
             {/* todo: use an input component with type file instead of this */}
@@ -289,21 +294,6 @@ function App() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="remove-duplicates"
-              checked={isUsingUniqueData}
-              onCheckedChange={(checked) => {
-                setIsUsingUniqueData(!!checked);
-              }}
-            />
-            <label
-              htmlFor="remove-duplicates"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Remove duplicates
-            </label>
           </div>
         </div>
       </section>
