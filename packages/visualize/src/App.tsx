@@ -9,21 +9,23 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Checkbox } from "./components/ui/checkbox";
 import { Progress } from "./components/ui/progress";
 import { Restaurant, TableData } from "./types";
 import { RestaurantCard } from "./components/RestaurantCard";
 import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
+import { FieldLabel } from "./components/ui/field";
+import { SelectedRestaurants, State } from "./lib/state";
+import { useQueryState } from "./lib/queryParams";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { useRef } from "react";
-import { exportSelectedData, importSelectedData } from "./lib/dataTransfer";
+import { importSelectedData, exportSelectedData } from "./lib/dataTransfer";
 
 const TOTAL_CHUNK_COUNT = Number(process.env.DINE_OUT_CHUNK_COUNT);
 
@@ -147,20 +149,42 @@ function App() {
 
   const [isUsingUniqueData, setIsUsingUniqueData] = useState<boolean>(true);
   const [showOnlySelected, setShowOnlySelected] = useState<boolean>(false);
-  const [selectedRestaurants, setSelectedRestaurants] = useLocalStorageState<
-    Record<string, boolean>
-  >("selectedRestaurants", {
-    defaultValue: {},
-  });
+  // TODO: remove using this local storage after some time
+  const [legacySelectedRestaurants, setLegacySelectedRestaurants] =
+    useLocalStorageState<SelectedRestaurants | null>("selectedRestaurants", {
+      defaultValue: null,
+    });
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { currentState, setCurrentState } = useQueryState(
+    () => new State(legacySelectedRestaurants ?? {}),
+  );
+
+  // Migrate legacy selected restaurants to query param state
+  useEffect(() => {
+    if (legacySelectedRestaurants !== null) {
+      setLegacySelectedRestaurants(null);
+    }
+  }, [legacySelectedRestaurants, setLegacySelectedRestaurants]);
+
+  const selectedRestaurants = currentState.selectedRestaurants;
+
+  const setSelectedRestaurants = useCallback(
+    (updater: React.SetStateAction<SelectedRestaurants>) => {
+      const newSelectedRestaurants =
+        typeof updater === "function" ? updater(selectedRestaurants) : updater;
+      setCurrentState(() => new State(newSelectedRestaurants));
+    },
+    [selectedRestaurants],
+  );
 
   // todo: move state handling/filters to tanstack table
   const processSelectedRestaurants = useCallback(
-    (selected: typeof selectedRestaurants, data: TableData[]) =>
+    (selected: SelectedRestaurants, data: TableData[]) =>
       data.filter((value) => selected[value.restaurant.id]),
     [],
   );
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const unProcessedData = isUsingUniqueData
     ? uniqueRestaurantTableData
@@ -240,7 +264,9 @@ function App() {
                 setShowOnlySelected(!!checked);
               }}
             />
-            <label htmlFor="show-only-selected">Show only selected</label>
+            <FieldLabel htmlFor="show-only-selected">
+              Show only selected
+            </FieldLabel>
           </div>
           <div className="flex items-center space-x-2 flex-wrap gap-y-2">
             <Checkbox
@@ -250,7 +276,9 @@ function App() {
                 setIsUsingUniqueData(!!checked);
               }}
             />
-            <label htmlFor="remove-duplicates">Remove duplicates</label>
+            <FieldLabel htmlFor="remove-duplicates">
+              Remove duplicates
+            </FieldLabel>
           </div>
           <div className="flex items-center space-x-2 flex-wrap gap-y-2">
             <Button onClick={invertSelection}>Invert selection</Button>
