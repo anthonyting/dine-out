@@ -148,7 +148,6 @@ function App() {
   ]);
 
   const [isUsingUniqueData, setIsUsingUniqueData] = useState<boolean>(true);
-  const [showOnlySelected, setShowOnlySelected] = useState<boolean>(false);
   // TODO: remove using this local storage after some time
   const [legacySelectedRestaurants, setLegacySelectedRestaurants] =
     useLocalStorageState<SelectedRestaurants | null>("selectedRestaurants", {
@@ -156,7 +155,7 @@ function App() {
     });
 
   const { currentState, setCurrentState } = useQueryState(
-    () => new State(legacySelectedRestaurants ?? {}),
+    () => new State(legacySelectedRestaurants ?? {}, false),
   );
 
   // Migrate legacy selected restaurants to query param state
@@ -167,14 +166,26 @@ function App() {
   }, [legacySelectedRestaurants, setLegacySelectedRestaurants]);
 
   const selectedRestaurants = currentState.selectedRestaurants;
+  const showOnlySelected = currentState.showSelectedOnly;
 
   const setSelectedRestaurants = useCallback(
     (updater: React.SetStateAction<SelectedRestaurants>) => {
       const newSelectedRestaurants =
         typeof updater === "function" ? updater(selectedRestaurants) : updater;
-      setCurrentState(() => new State(newSelectedRestaurants));
+      setCurrentState(
+        (prevState) =>
+          new State(newSelectedRestaurants, prevState.showSelectedOnly),
+      );
     },
     [selectedRestaurants],
+  );
+  const setShowOnlySelected = useCallback(
+    (showOnly: boolean) => {
+      setCurrentState(
+        (prevState) => new State(prevState.selectedRestaurants, showOnly),
+      );
+    },
+    [setCurrentState],
   );
 
   // todo: move state handling/filters to tanstack table
