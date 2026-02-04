@@ -15,12 +15,13 @@ export const useQueryState = (initialState: () => State) => {
   if (prevState === null) {
     // prevQuery is null on first render so we need to initialize it and set the query from the URL
     const urlParams = new URLSearchParams(window.location.search);
-    const queryFromUrl = Object.fromEntries(urlParams.entries());
+    const queryFromUrl = Object.fromEntries(
+      urlParams.entries(),
+    ) as Partial<QueryState>;
 
-    const deserializedState =
-      "state" in queryFromUrl && queryFromUrl.state
-        ? State.deserialize(queryFromUrl.state as SerializedStateString)
-        : currentState;
+    const deserializedState = queryFromUrl.s
+      ? State.deserialize(queryFromUrl.s)
+      : currentState;
 
     setCurrentState(deserializedState);
     setPrevState(deserializedState);
